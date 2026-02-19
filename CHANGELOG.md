@@ -2,17 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## [1.1.0] - 2026-02-19
+
+No public API changes — this is a drop-in upgrade.
 
 ### Added
 
-- Native C extension (`_lie_ops_c`) for performance-critical Lie group operations, with automatic fallback to pure Python when unavailable.
-  - Fused SE3 operations: `se3_log`, `se3_rminus`, `se3_inverse_multiply`, `se3_jlog`, `se3_adjoint`, `se3_rotation_adjoint_from_xmat`.
-  - `FrameTask` and `RelativeFrameTask` use native ops when available, with shared `compute_qp_objective` override to avoid redundant transform computation.
-  - `Configuration.get_frame_jacobian` uses native adjoint computation from raw MuJoCo xmat.
-  - Set `MINK_DISABLE_NATIVE=1` to force the pure Python path.
-- Switch build backend to `scikit-build-core` for C extension support.
-- Vectorize `Configuration.check_limits` using precomputed joint indices and numpy operations.
+- Native C extension (`_lie_ops_c`) for SE3 operations in the IK hot path, with automatic fallback to pure Python.
+  - 8 fused operations (`se3_log`, `se3_rminus`, `se3_inverse_multiply`, `se3_jlog`, `se3_adjoint`, etc.) on raw double arrays, no intermediate Python objects.
+  - `FrameTask`, `RelativeFrameTask`, and `Configuration` pass raw `ndarray[7]` internally for end-to-end native path.
+  - Disable with `MINK_DISABLE_NATIVE=1`.
+- Build backend switched to `scikit-build-core`. C extension is optional for source installs without a compiler.
+
+### Changed
+
+- `CollisionAvoidanceLimit`: pre-allocated scratch buffers, inlined hot loop, removed per-pair `Contact` dataclass. ~12x faster.
+- `Configuration.check_limits`: vectorized using precomputed joint indices and numpy ops.
 
 ## 1.0.0 - 2025-12-19
 
