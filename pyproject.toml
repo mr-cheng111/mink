@@ -1,5 +1,5 @@
 [build-system]
-requires = ["scikit-build-core", "numpy"]
+requires = ["scikit-build-core>=0.10", "numpy"]
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -117,4 +117,9 @@ omit = [
 ]
 
 [tool.scikit-build]
+wheel.packages = ["src/mink"]
+
+[[tool.scikit-build.overrides]]
+if.failed = true
+wheel.cmake = false
 wheel.packages = ["src/mink"]
