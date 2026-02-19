@@ -120,6 +120,9 @@ omit = [
 wheel.packages = ["src/mink"]
 sdist.exclude = ["examples", "benchmarks", "docs", "tests", "typings", "uv.lock"]
 
+[tool.cibuildwheel]
+build-frontend = "build[uv]"
+
 [[tool.scikit-build.overrides]]
 if.failed = true
 wheel.cmake = false
