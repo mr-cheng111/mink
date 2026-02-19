@@ -133,9 +133,56 @@ static void so3_ljacinv(double *out, const double *omega) {
     out[0] += 1.0; out[4] += 1.0; out[8] += 1.0;
 }
 
+/* Convert row-major 3x3 rotation matrix to quaternion (w,x,y,z). */
+/* Shepperd's method, same algorithm as mju_mat2Quat. */
+static void mat33_to_quat(double *wxyz, const double *R) {
+    double tr = R[0] + R[4] + R[8];
+    if (tr > 0.0) {
+        double s = sqrt(tr + 1.0) * 2.0;  /* s = 4*w */
+        wxyz[0] = 0.25 * s;
+        wxyz[1] = (R[7] - R[5]) / s;
+        wxyz[2] = (R[2] - R[6]) / s;
+        wxyz[3] = (R[3] - R[1]) / s;
+    } else if (R[0] > R[4] && R[0] > R[8]) {
+        double s = sqrt(1.0 + R[0] - R[4] - R[8]) * 2.0;  /* s = 4*x */
+        wxyz[0] = (R[7] - R[5]) / s;
+        wxyz[1] = 0.25 * s;
+        wxyz[2] = (R[1] + R[3]) / s;
+        wxyz[3] = (R[2] + R[6]) / s;
+    } else if (R[4] > R[8]) {
+        double s = sqrt(1.0 + R[4] - R[0] - R[8]) * 2.0;  /* s = 4*y */
+        wxyz[0] = (R[2] - R[6]) / s;
+        wxyz[1] = (R[1] + R[3]) / s;
+        wxyz[2] = 0.25 * s;
+        wxyz[3] = (R[5] + R[7]) / s;
+    } else {
+        double s = sqrt(1.0 + R[8] - R[0] - R[4]) * 2.0;  /* s = 4*z */
+        wxyz[0] = (R[3] - R[1]) / s;
+        wxyz[1] = (R[2] + R[6]) / s;
+        wxyz[2] = (R[5] + R[7]) / s;
+        wxyz[3] = 0.25 * s;
+    }
+    /* Normalize to ensure unit quaternion. */
+    double n = sqrt(wxyz[0]*wxyz[0] + wxyz[1]*wxyz[1] +
+                    wxyz[2]*wxyz[2] + wxyz[3]*wxyz[3]);
+    if (n > 0.0) {
+        double inv = 1.0 / n;
+        wxyz[0] *= inv; wxyz[1] *= inv; wxyz[2] *= inv; wxyz[3] *= inv;
+    }
+}
+
 /* ========================================================================= */
 /* SE3 core operations                                                       */
 /* ========================================================================= */
+
+/*
+ * SE3 inverse: wxyz_xyz[7] -> wxyz_xyz[7].
+ */
+static void _se3_inverse(double *out, const double *a) {
+    quat_neg(out, a);
+    double neg_t[3] = {-a[4], -a[5], -a[6]};
+    quat_rotate(out + 4, neg_t, out);
+}
 
 /*
  * SE3 log: wxyz_xyz[7] -> tangent[6].
@@ -498,6 +545,46 @@ static PyObject *py_se3_rotation_adjoint_from_xmat(PyObject *self, PyObject *arg
     return out;
 }
 
+static PyObject *py_se3_inverse(PyObject *self, PyObject *args) {
+    (void)self;
+    PyObject *arg;
+    if (!PyArg_ParseTuple(args, "O", &arg)) return NULL;
+    double wxyz_xyz[7];
+    if (parse_array(arg, wxyz_xyz, 7) < 0) return NULL;
+
+    double result[7];
+    _se3_inverse(result, wxyz_xyz);
+
+    npy_intp dims[1] = {7};
+    PyObject *out = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+    if (!out) return NULL;
+    double *odata = (double *)PyArray_DATA((PyArrayObject *)out);
+    for (int i = 0; i < 7; i++) odata[i] = result[i];
+    return out;
+}
+
+static PyObject *py_xmat_xpos_to_wxyz_xyz(PyObject *self, PyObject *args) {
+    (void)self;
+    PyObject *arg_xmat, *arg_xpos;
+    if (!PyArg_ParseTuple(args, "OO", &arg_xmat, &arg_xpos)) return NULL;
+    double xmat[9], xpos[3];
+    if (parse_array(arg_xmat, xmat, 9) < 0) return NULL;
+    if (parse_array(arg_xpos, xpos, 3) < 0) return NULL;
+
+    double result[7];
+    mat33_to_quat(result, xmat);
+    result[4] = xpos[0];
+    result[5] = xpos[1];
+    result[6] = xpos[2];
+
+    npy_intp dims[1] = {7};
+    PyObject *out = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+    if (!out) return NULL;
+    double *odata = (double *)PyArray_DATA((PyArrayObject *)out);
+    for (int i = 0; i < 7; i++) odata[i] = result[i];
+    return out;
+}
+
 /* ========================================================================= */
 /* Module definition                                                         */
 /* ========================================================================= */
@@ -515,6 +602,10 @@ static PyMethodDef methods[] = {
      "SE3 adjoint: wxyz_xyz[7] -> 6x6 matrix"},
     {"se3_rotation_adjoint_from_xmat", py_se3_rotation_adjoint_from_xmat, METH_VARARGS,
      "Adjoint of pure rotation from MuJoCo xmat[9] -> 6x6 matrix"},
+    {"se3_inverse", py_se3_inverse, METH_VARARGS,
+     "SE3 inverse: wxyz_xyz[7] -> wxyz_xyz[7]"},
+    {"xmat_xpos_to_wxyz_xyz", py_xmat_xpos_to_wxyz_xyz, METH_VARARGS,
+     "Convert MuJoCo xmat[9] + xpos[3] to SE3 wxyz_xyz[7]"},
     {NULL, NULL, 0, NULL}
 };
 

@@ -65,6 +65,9 @@ class Configuration:
         self._limited_qposadr = model.jnt_qposadr[self._limited_jnt_ids]
         self._limited_range = model.jnt_range[self._limited_jnt_ids]
 
+        # Cached identity matrix for QP assembly.
+        self._eye_nv = np.eye(model.nv)
+
         self.update(q=q)
 
     def update(self, q: np.ndarray | None = None) -> None:
@@ -152,18 +155,7 @@ class Configuration:
         Returns:
             Jacobian :math:`{}_B J_{WB}` of the frame.
         """
-        if frame_type not in consts.SUPPORTED_FRAMES:
-            raise exceptions.UnsupportedFrame(frame_type, consts.SUPPORTED_FRAMES)
-
-        frame_id = mujoco.mj_name2id(
-            self.model, consts.FRAME_TO_ENUM[frame_type], frame_name
-        )
-        if frame_id == -1:
-            raise exceptions.InvalidFrame(
-                frame_name=frame_name,
-                frame_type=frame_type,
-                model=self.model,
-            )
+        frame_id = self._resolve_frame_id(frame_name, frame_type)
 
         jac = np.empty((6, self.model.nv))
         jac_func = consts.FRAME_TO_JAC_FUNC[frame_type]
@@ -182,6 +174,35 @@ class Configuration:
 
         return jac
 
+    def _resolve_frame_id(self, frame_name: str, frame_type: str) -> int:
+        """Validate frame type and resolve name to ID."""
+        if frame_type not in consts.SUPPORTED_FRAMES:
+            raise exceptions.UnsupportedFrame(frame_type, consts.SUPPORTED_FRAMES)
+        frame_id = mujoco.mj_name2id(
+            self.model, consts.FRAME_TO_ENUM[frame_type], frame_name
+        )
+        if frame_id == -1:
+            raise exceptions.InvalidFrame(
+                frame_name=frame_name,
+                frame_type=frame_type,
+                model=self.model,
+            )
+        return frame_id
+
+    def _get_transform_frame_to_world_wxyz_xyz(
+        self, frame_name: str, frame_type: str
+    ) -> np.ndarray:
+        """Return the raw wxyz_xyz[7] array for a frame pose. Internal use."""
+        frame_id = self._resolve_frame_id(frame_name, frame_type)
+        xpos = getattr(self.data, consts.FRAME_TO_POS_ATTR[frame_type])[frame_id]
+        xmat = getattr(self.data, consts.FRAME_TO_XMAT_ATTR[frame_type])[frame_id]
+        if _native is not None:
+            return _native.xmat_xpos_to_wxyz_xyz(xmat, xpos)
+        return SE3.from_rotation_and_translation(
+            rotation=SO3.from_matrix(xmat.reshape(3, 3)),
+            translation=xpos,
+        ).wxyz_xyz
+
     def get_transform_frame_to_world(self, frame_name: str, frame_type: str) -> SE3:
         """Get the pose of a frame at the current configuration.
 
@@ -192,25 +213,25 @@ class Configuration:
         Returns:
             The pose of the frame in the world frame.
         """
-        if frame_type not in consts.SUPPORTED_FRAMES:
-            raise exceptions.UnsupportedFrame(frame_type, consts.SUPPORTED_FRAMES)
-
-        frame_id = mujoco.mj_name2id(
-            self.model, consts.FRAME_TO_ENUM[frame_type], frame_name
+        return SE3(
+            wxyz_xyz=self._get_transform_frame_to_world_wxyz_xyz(frame_name, frame_type)
         )
-        if frame_id == -1:
-            raise exceptions.InvalidFrame(
-                frame_name=frame_name,
-                frame_type=frame_type,
-                model=self.model,
-            )
 
-        xpos = getattr(self.data, consts.FRAME_TO_POS_ATTR[frame_type])[frame_id]
-        xmat = getattr(self.data, consts.FRAME_TO_XMAT_ATTR[frame_type])[frame_id]
-        return SE3.from_rotation_and_translation(
-            rotation=SO3.from_matrix(xmat.reshape(3, 3)),
-            translation=xpos,
-        )
+    def _get_transform_wxyz_xyz(
+        self,
+        source_name: str,
+        source_type: str,
+        dest_name: str,
+        dest_type: str,
+    ) -> np.ndarray:
+        """Return the raw wxyz_xyz[7] for a relative transform. Internal use."""
+        source = self._get_transform_frame_to_world_wxyz_xyz(source_name, source_type)
+        dest = self._get_transform_frame_to_world_wxyz_xyz(dest_name, dest_type)
+        if _native is not None:
+            return _native.se3_inverse_multiply(dest, source)
+        dest_se3 = SE3(wxyz_xyz=dest)
+        source_se3 = SE3(wxyz_xyz=source)
+        return (dest_se3.inverse() @ source_se3).wxyz_xyz
 
     def get_transform(
         self,
@@ -231,13 +252,11 @@ class Configuration:
         Returns:
             The pose of `source_name` in `dest_name`.
         """
-        transform_source_to_world = self.get_transform_frame_to_world(
-            source_name, source_type
+        return SE3(
+            wxyz_xyz=self._get_transform_wxyz_xyz(
+                source_name, source_type, dest_name, dest_type
+            )
         )
-        transform_dest_to_world = self.get_transform_frame_to_world(
-            dest_name, dest_type
-        )
-        return transform_dest_to_world.inverse() @ transform_source_to_world
 
     def integrate(self, velocity: np.ndarray, dt: float) -> np.ndarray:
         """Integrate a velocity starting from the current configuration.
