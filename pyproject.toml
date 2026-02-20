@@ -34,7 +34,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ipdb>=0.13.13",
-    "pyright>=1.1.407",
+    "pyright>=1.1.408",
     "pytest>=8.4.2",
     "absl-py",
     "coveralls",
