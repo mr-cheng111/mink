@@ -14,19 +14,19 @@ Features include:
 * Limits on joint positions and velocities;
 * Collision avoidance between any geom pair;
 * Support for closed-chain kinematics (loop closures) via [equality constraints](https://mujoco.readthedocs.io/en/stable/computation/index.html#coequality);
-* Lie group interface for rigid body transformations.
+* Lie group interface for rigid body transformations, with native C optimization for IK hot paths.
 
 For usage and API reference, see the [documentation](https://kevinzakka.github.io/mink/).
 
 If you use mink in your research, please cite it as follows:
 
 ```bibtex
-@software{Zakka_Mink_Python_inverse_2025,
+@software{Zakka_Mink_Python_inverse_2026,
   author = {Zakka, Kevin},
   title = {{Mink: Python inverse kinematics based on MuJoCo}},
-  year = {2025},
-  month = dec,
-  version = {1.0.0},
+  year = {2026},
+  month = feb,
+  version = {1.1.0},
   url = {https://github.com/kevinzakka/mink},
   license = {Apache-2.0}
 }
