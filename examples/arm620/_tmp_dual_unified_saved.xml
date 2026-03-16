@@ -112,11 +112,11 @@
     <mesh name="right/Link5" content_type="model/stl" file="meshes/arm620/Link5.STL"/>
     <mesh name="right/Link6" file="meshes/arm620/Link6.STL"/>
     <mesh name="right/base" content_type="model/stl" file="meshes/robotiq/base.stl"/>
-    <mesh name="right/base_coupling" file="meshes/robotiq/base_coupling.stl"/>
+    <mesh name="right/base_coupling" content_type="model/stl" file="meshes/robotiq/base_coupling.stl"/>
     <mesh name="right/c-a01-85-open" file="meshes/robotiq/c-a01-85-open.stl"/>
     <mesh name="right/driver" file="meshes/robotiq/driver.stl"/>
     <mesh name="right/coupler" content_type="model/stl" file="meshes/robotiq/coupler.stl"/>
-    <mesh name="right/spring_link" content_type="model/stl" file="meshes/robotiq/spring_link.stl"/>
+    <mesh name="right/spring_link" file="meshes/robotiq/spring_link.stl"/>
     <mesh name="right/follower" file="meshes/robotiq/follower.stl"/>
     <mesh name="right/tongue" file="meshes/robotiq/tongue.stl"/>
   </asset>
