@@ -1,0 +1,21 @@
+<mujoco model="arm620 scene">
+  <include file="arm620.xml"/>
+
+  <statistic center="0.3 0 0.3" extent="0.8" meansize="0.08"/>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.1 0.1 0.1" specular="0 0 0"/>
+    <global azimuth="120" elevation="-20"/>
+  </visual>
+
+  <worldbody>
+    <!-- Mocap target for visualization -->
+    <body name="target" pos="0.4 0 0.4" quat="0 1 0 0" mocap="true">
+      <geom type="box" size=".03 .03 .03" contype="0" conaffinity="0" rgba=".6 .3 .3 .3"/>
+    </body>
+  </worldbody>
+
+  <keyframe>
+    <key name="home" qpos="0 0 0 0 0 0 0 0 0 0 0 0" ctrl="0 0 0 0 0 0 0"/>
+  </keyframe>
+</mujoco>
