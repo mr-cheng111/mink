@@ -11,7 +11,14 @@ import mujoco
 
 _HERE = Path(__file__).parent
 _SINGLE_ARM_XML = _HERE / "arm620.xml"
-_ROT_Z_90_QUAT = [0.70710678, 0.0, 0.0, 0.70710678]
+_BASE_PLINTH_HALF_EXTENTS = [0.55, 0.35, 0.06]
+_COLUMN_HALF_EXTENTS = [0.10, 0.10, 0.30]
+_ARM_MOUNT_HEIGHT = 0.5
+# 四元数轴角公式: q = [cos(theta/2), ax*sin(theta/2), ay*sin(theta/2), az*sin(theta/2)]。
+# 当前在“贴柱侧装”基础上继续绕 Z 轴再旋转 90°（修正为相反方向）：
+# q_new = qz(-90°) * q_old
+_LEFT_MOUNT_QUAT = [0.0, 0.0, 0.70710678, 0.70710678]
+_RIGHT_MOUNT_QUAT = [0.0, 0.0, -0.70710678, 0.70710678]
 
 
 def _prepare_arm_spec(prefix: str) -> mujoco.MjSpec:
@@ -36,7 +43,7 @@ def _prepare_arm_spec(prefix: str) -> mujoco.MjSpec:
     return arm_spec
 
 
-def _build_dual_unified_spec(y_offset: float = 0.28) -> mujoco.MjSpec:
+def _build_dual_unified_spec(y_offset: float = 0.1) -> mujoco.MjSpec:
     root = mujoco.MjSpec()
     root.modelname = "dual_arm620_unified_base"
 
@@ -53,7 +60,23 @@ def _build_dual_unified_spec(y_offset: float = 0.28) -> mujoco.MjSpec:
     )
 
     # Shared robot base at world origin.
-    base_link = root.worldbody.add_body(name="base_link", pos=[0.0, 0.0, 0.0])
+    base_link = root.worldbody.add_body(name="base_link", pos=[0.0, 0.0, 0.1])
+    # 底座大平台：让上表面位于 z=0，便于把 base_link 原点当作安装参考平面。
+    base_link.add_geom(
+        name="base_plinth",
+        type=mujoco.mjtGeom.mjGEOM_BOX,
+        pos=[0.0, 0.0, -_BASE_PLINTH_HALF_EXTENTS[2]],
+        size=_BASE_PLINTH_HALF_EXTENTS,
+        rgba=[0.22, 0.24, 0.28, 1.0],
+    )
+    # 中央立柱：底部落在 z=0，上升形成双臂安装主体。
+    base_link.add_geom(
+        name="base_column",
+        type=mujoco.mjtGeom.mjGEOM_BOX,
+        pos=[0.0, 0.0, _COLUMN_HALF_EXTENTS[2]],
+        size=_COLUMN_HALF_EXTENTS,
+        rgba=[0.32, 0.34, 0.38, 1.0],
+    )
     # Visualize shared base frame axes (X-red, Y-green, Z-blue).
     base_link.add_site(name="base_link_frame", pos=[0.0, 0.0, 0.0], size=[0.001], group=5)
     base_link.add_geom(
@@ -83,14 +106,14 @@ def _build_dual_unified_spec(y_offset: float = 0.28) -> mujoco.MjSpec:
 
     left_mount = base_link.add_site(
         name="left_mount",
-        pos=[0.0, y_offset, 0.0],
-        quat=_ROT_Z_90_QUAT,
+        pos=[0.0, y_offset, _ARM_MOUNT_HEIGHT],
+        quat=_LEFT_MOUNT_QUAT,
         group=5,
     )
     right_mount = base_link.add_site(
         name="right_mount",
-        pos=[0.0, -y_offset, 0.0],
-        quat=_ROT_Z_90_QUAT,
+        pos=[0.0, -y_offset, _ARM_MOUNT_HEIGHT],
+        quat=_RIGHT_MOUNT_QUAT,
         group=5,
     )
 
@@ -200,18 +223,18 @@ def _build_dual_unified_spec(y_offset: float = 0.28) -> mujoco.MjSpec:
     return root
 
 
-def build_dual_unified_model(y_offset: float = 0.28) -> mujoco.MjModel:
+def build_dual_unified_model(y_offset: float = 0.1) -> mujoco.MjModel:
     return _build_dual_unified_spec(y_offset=y_offset).compile()
 
 
-def build_dual_unified_data(y_offset: float = 0.28) -> tuple[mujoco.MjModel, mujoco.MjData]:
+def build_dual_unified_data(y_offset: float = 0.18) -> tuple[mujoco.MjModel, mujoco.MjData]:
     model = build_dual_unified_model(y_offset=y_offset)
     data = mujoco.MjData(model)
     mujoco.mj_forward(model, data)
     return model, data
 
 
-def save_dual_unified_xml(output_path: str | Path, y_offset: float = 0.28) -> Path:
+def save_dual_unified_xml(output_path: str | Path, y_offset: float = 0.1) -> Path:
     root = _build_dual_unified_spec(y_offset=y_offset)
     output = Path(output_path)
     xml_text = root.to_xml()
