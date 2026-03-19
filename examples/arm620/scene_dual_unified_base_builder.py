@@ -17,8 +17,8 @@ _ARM_MOUNT_HEIGHT = 0.5
 # 四元数轴角公式: q = [cos(theta/2), ax*sin(theta/2), ay*sin(theta/2), az*sin(theta/2)]。
 # 当前在“贴柱侧装”基础上继续绕 Z 轴再旋转 90°（修正为相反方向）：
 # q_new = qz(-90°) * q_old
-_LEFT_MOUNT_QUAT = [0.0, 0.0, 0.70710678, 0.70710678]
-_RIGHT_MOUNT_QUAT = [0.0, 0.0, -0.70710678, 0.70710678]
+_LEFT_MOUNT_QUAT = [-0.5, 0.5, 0.5, 0.5]
+_RIGHT_MOUNT_QUAT = [0.5, 0.5, -0.5, 0.5]
 
 
 def _prepare_arm_spec(prefix: str) -> mujoco.MjSpec:
