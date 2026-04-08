@@ -147,7 +147,8 @@ def main() -> None:
         lm_damping=1.0,
     )
     posture_task = mink.PostureTask(model=model, cost=1e-2)
-    tasks = [left_task, right_task, posture_task]
+    kinetic_energy_task = mink.KineticEnergyRegularizationTask(cost=1.0)
+    tasks = [left_task, right_task, posture_task, kinetic_energy_task]
 
     l_qidx = qpos_indices(model, LEFT_JOINTS)
     r_qidx = qpos_indices(model, RIGHT_JOINTS)
@@ -204,6 +205,7 @@ def main() -> None:
 
         rate = RateLimiter(frequency=CONTROL_HZ, warn=False)
         control_dt = 1.0 / CONTROL_HZ
+        kinetic_energy_task.set_dt(self.control_dt)  # NOTE: This is required!
         sim_substeps = max(1, int(round(control_dt / model.opt.timestep)))
         print(
             f"Control: {CONTROL_HZ:.0f}Hz, model dt: {model.opt.timestep:.4f}s, "
