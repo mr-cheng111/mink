@@ -10,13 +10,20 @@ from pathlib import Path
 import mujoco
 
 _HERE = Path(__file__).parent
+# 单臂 MJCF 模板路径（双臂场景通过 attach 两次该模型生成）。
 _SINGLE_ARM_XML = _HERE / "arm620.xml"
+# 统一底座“大平台”半尺寸（单位：米），对应 MuJoCo box 的 `size=[hx, hy, hz]`。
+# 全尺寸 = [2*hx, 2*hy, 2*hz]。
 _BASE_PLINTH_HALF_EXTENTS = [0.55, 0.35, 0.06]
-_COLUMN_HALF_EXTENTS = [0.10, 0.10, 0.30]
-_ARM_MOUNT_HEIGHT = 0.5
+# 中央立柱半尺寸（单位：米），同样遵循 MuJoCo box 半尺寸定义。
+_COLUMN_HALF_EXTENTS = [0.10, 0.10, 0.60]
+# 左右机械臂安装位相对 `base_link` 原点的高度（单位：米）。
+# 安装点世界高度关系：z_mount = z_base_link + _ARM_MOUNT_HEIGHT。
+_ARM_MOUNT_HEIGHT = 1.0
 # 四元数轴角公式: q = [cos(theta/2), ax*sin(theta/2), ay*sin(theta/2), az*sin(theta/2)]。
 # 当前在“贴柱侧装”基础上继续绕 Z 轴再旋转 90°（修正为相反方向）：
 # q_new = qz(-90°) * q_old
+# 这里采用 MuJoCo 的四元数顺序 [w, x, y, z]。
 _LEFT_MOUNT_QUAT = [-0.5, 0.5, 0.5, 0.5]
 _RIGHT_MOUNT_QUAT = [0.5, 0.5, -0.5, 0.5]
 
